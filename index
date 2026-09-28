@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en" translate="no" class="notranslate">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="google" content="notranslate">
+    <title>Stationery Learning Playground</title>
+    <!-- Tailwind CSS for modern responsive design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Touch prevent default scrolling/zooming for smooth drag experience */
+        body, html {
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        .stationery-card {
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .stationery-card:active {
+            transform: scale(0.95);
+        }
+
+        /* Pencil Case background pattern */
+        .pencil-case-bg {
+            background-color: #fffbeb;
+            background-image: radial-gradient(#fcd34d 2px, transparent 2px);
+            background-size: 28px 28px;
+        }
+
+        /* Speech bubble pop animation */
+        @keyframes popIn {
+            0% { transform: scale(0.5) translateY(10px); opacity: 0; }
+            70% { transform: scale(1.1) translateY(-5px); opacity: 1; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .pop-bubble {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .draggable-item {
+            touch-action: none;
+            cursor: grab;
+        }
+
+        .draggable-item:active {
+            cursor: grabbing;
+        }
+
+        /* Trash Drop Zone visual highlights */
+        .trash-active {
+            background-color: #ffe4e6 !important;
+            border-color: #f43f5e !important;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 h-screen w-screen flex flex-col text-slate-800 antialiased overflow-hidden select-none" translate="no">
+
+    <!-- Top Header Bar -->
+    <header class="h-16 bg-indigo-600 text-white flex items-center justify-between px-6 shadow-md z-10 shrink-0">
+        <div class="flex items-center gap-3">
+            <span class="text-3xl">✏️</span>
+            <h1 class="font-extrabold text-2xl tracking-wide uppercase">My Pencil Case</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="trash-zone" class="bg-indigo-700/80 border-2 border-indigo-400/60 rounded-2xl px-4 py-2 flex items-center gap-2 transition-all">
+                <span class="text-2xl">🗑️</span>
+                <span class="text-xs uppercase font-bold text-indigo-100">Drag here to remove</span>
+            </div>
+            <button id="clear-btn" class="bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-bold px-4 py-2.5 rounded-2xl text-sm transition-colors shadow-lg flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                Clear All
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Landscape Container -->
+    <main class="flex-1 flex flex-row overflow-hidden p-3 gap-3 relative">
+
+        <!-- Left Side: Pencil Case Area (approx 7/12 width) -->
+        <section id="case-area" class="w-7/12 h-full flex flex-col relative rounded-3xl border-4 border-indigo-400 bg-amber-50 shadow-2xl overflow-hidden pencil-case-bg">
+            <!-- Pencil case top zipper bar graphic -->
+            <div class="h-10 bg-indigo-500 w-full flex items-center justify-between px-5 border-b-4 border-indigo-600 shadow-inner">
+                <div class="h-3 w-32 bg-indigo-300 rounded-full"></div>
+                <div class="flex gap-2">
+                    <div class="w-4 h-4 rounded-full bg-amber-300 shadow"></div>
+                    <div class="w-4 h-4 rounded-full bg-rose-400 shadow"></div>
+                    <div class="w-4 h-4 rounded-full bg-emerald-400 shadow"></div>
+                </div>
+            </div>
+
+            <!-- Speech/Count Display Bubble -->
+            <div id="speech-bubble" class="hidden absolute top-14 left-1/2 -translate-x-1/2 bg-indigo-900/95 text-white px-8 py-3 rounded-2xl shadow-2xl z-40 font-black text-3xl flex items-center gap-4 border-2 border-indigo-300 pop-bubble pointer-events-none">
+                <span id="speech-text">1 pen</span>
+                <span class="text-2xl">🔊</span>
+            </div>
+
+            <!-- Drop Zone Container for Items placed in case -->
+            <div id="pencil-case-dropzone" class="flex-1 w-full h-full relative p-4">
+                <div id="empty-hint" class="absolute inset-0 flex flex-col items-center justify-center text-amber-800/25 pointer-events-none">
+                    <svg class="w-32 h-32 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"></path></svg>
+                    <p class="font-black text-3xl uppercase tracking-wider">Tap item on right to add</p>
+                </div>
+            </div>
+
+            <!-- Bottom Instruction Bar -->
+            <div class="h-11 bg-amber-100/90 backdrop-blur border-t-2 border-amber-200/80 px-5 flex items-center justify-between text-sm font-extrabold text-amber-950">
+                <span>Tap items on drawer to add. Tap "❌" on item or drag out to remove.</span>
+                <span id="item-counter" class="bg-amber-200/80 px-3 py-1 rounded-xl text-amber-900 font-extrabold border border-amber-300">Total Items: 0</span>
+            </div>
+        </section>
+
+        <!-- Right Side: Stationery Grid (5/12 width, Expanded for Bigger Images) -->
+        <section class="w-5/12 h-full bg-slate-800/80 backdrop-blur-md rounded-3xl p-3 border-2 border-slate-700 flex flex-col shadow-2xl">
+            <h2 class="text-indigo-200 font-extrabold text-center text-lg uppercase tracking-wider mb-2 flex items-center justify-center gap-2">
+                <span class="text-2xl">🎒</span> Stationery Drawer
+            </h2>
+
+            <!-- 12 Items Grid (4 rows x 3 columns) -->
+            <div id="tray-grid" class="grid grid-cols-3 grid-rows-4 gap-2.5 flex-1 w-full h-full min-h-0">
+                <!-- Javascript will inject 12 large stationery items dynamically -->
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Data for 12 Stationery items with large high-quality SVG graphics (100% English)
+        const STATIONERY_ITEMS = [
+            {
+                id: 'pen',
+                name: 'pen',
+                plural: 'pens',
+                svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><path d="M78,12 L88,22 L38,72 L20,78 L26,60 Z" fill="#3b82f6" stroke="#1d4ed8" stroke-width="5"/><path d="M78,12 L88,22 L80,30 L70,20 Z" fill="#93c5fd"/><path d="M20,78 L26,60 L32,66 Z" fill="#0f172a"/><path d="M65,25 L75,35" stroke="#1d4ed8" stroke-width="4"/></svg>`
+            },
+            {
+                id: 'pencil',
+                name: 'pencil',
+                plural: 'pencils',
+                svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><path d="M78,12 L88,22 L38,72 L20,78 L26,60 Z" fill="#f59e0b" stroke="#b45309" stroke-width="5"/><path d="M78,12 L88,22 L81,29 L71,19 Z" fill="#f43f5e"/><path d="M20,78 L26,60 L28,62 Z" fill="#fde68a"/><path d="M20,78 L23,75 L22,79 Z" fill="#0f172a"/><line x1="45" y1="25" x2="65" y2="45" stroke="#d97706" stroke-width="3"/></svg>`
+            },
+            {
+                id: 'eraser',
+                name: 'eraser',
+                plural: 'erasers',
+                svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><rect x="15" y="25" width="70" height="50" rx="10" fill="#f43f5e" stroke="#be123c" stroke-width="5"/><rect x="50" y="25" width="35" height="50" rx="6" fill="#38bdf8" stroke="#0284c7" stroke-width="5"/><path d="M25,35 L40,35" stroke="#fda4af" stroke-width="4" stroke-linecap="round"/></svg>`
+            },
+            {
+                id: 'ruler',
+                name: 'ruler',
+                plural: 'rulers',
+                svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><rect x="10" y="30" width="80" height="40" rx="6" fill="#facc15" stroke="#ca8a04" stroke-width="5"/><line x1="22" y1="30" x2="22" y2="48" stroke="#854d0e" stroke-width="4"/><line x1="34" y1="30" x2="34" y2="42" stroke="#854d0e" stroke-width="3"/><line x1="46" y1="30" x2="46" y2="48" stroke="#854d0e" stroke-width="4"/><line x1="58" y1="30" x2="58" y2="42" stroke="#854d0e" stroke-width="3"/><line x1="70" y1="30" x2="70" y2="48" stroke="#854d0e" stroke-width="4"/><line x1="82" y1="30" x2="82" y2="42" stroke="#854d0e" stroke-width="3"/></svg>`
+            },
+            {
+                id: 'scissors',
+                name: 'scissors',
+                plural: 'scissors',
+                svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><circle cx="28" cy="72" r="16" fill="none" stroke="#ef4444" stroke-width="7"/><circle cx="72" cy="72" r="16" fill="none" stroke="#ef4444" stroke-width="7"/><path d="M36,60 L70,18 L60,12 L30,50 Z" fill="#cbd5e1" stroke="#475569" stroke-width="3"/><path d="M64,60 L30,18 L40,12 L70,50 Z" fill="#e2e8f0" stroke="#475569" stroke-width="3"/><circle cx="50" cy="40" r="5" fill="#0f172a"/></svg>`
+            },
+            {
+                id: 'glue',
+                name: 'glue stick',
+                plural: 'glue sticks',
+                svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><rect x="28" y="32" width="44" height="56" rx="6" fill="#10b981" stroke="#047857" stroke-width="5"/><rect x="28" y="10" width="44" height="24" rx="6" fill="#f43f5e" stroke="#be123c" stroke-width="5"/><rect x="34" y="80" width="32" height="10" rx="3" fill="#047857"/></svg>`
+            },
+            {
+                id: 'marker',
+                name: 'marker',
+                plural: 'markers',
+                svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><rect x="32" y="32" width="36" height="56" rx="6" fill="#a855f7" stroke="#7e22ce" stroke-width="5"/><path d="M36,10 L64,10 L60,32 L40,32 Z" fill="#a855f7" stroke="#7e22ce" stroke-width="4"/><rect x="32" y="32" width="36" height="14" fill="#d8b4fe"/></svg>`
+            },
+            {
+                id: 'sharpener',
+                name: 'sharpener',
+                plural: 'sharpeners',
+                svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><rect x="20" y="20" width="60" height="60" rx="14" fill="#06b6d4" stroke="#0e7490" stroke-width="5"/><circle cx="50" cy="50" r="15" fill="#155e75"/><rect x="40" y="20" width="20" height="60" fill="#67e8f9" opacity="0.35"/></svg>`
+            },
+            {
+                id: 'stapler',
+                name: 'stapler',
+                plural: 'staplers',
+                svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><path d="M15,68 L85,68 L85,80 L15,80 Z" fill="#64748b" stroke="#334155" stroke-width="4"/><path d="M15,62 L80,32 L85,44 L22,68 Z" fill="#e2e8f0" stroke="#475569" stroke-width="4"/><path d="M12,32 C12,25 28,20 52,26 L85,44 L15,62 Z" fill="#0284c7" stroke="#0369a1" stroke-width="4"/></svg>`
+            },
+            {
+                id: 'notebook',
+                name: 'notebook',
+                plural: 'notebooks',
+                svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><rect x="20" y="10" width="65" height="80" rx="8" fill="#ec4899" stroke="#be185d" stroke-width="5"/><rect x="14" y="18" width="12" height="8" rx="3" fill="#fbcfe8"/><rect x="14" y="36" width="12" height="8" rx="3" fill="#fbcfe8"/><rect x="14" y="54" width="12" height="8" rx="3" fill="#fbcfe8"/><rect x="14" y="72" width="12" height="8" rx="3" fill="#fbcfe8"/><line x1="40" y1="28" x2="72" y2="28" stroke="#fbcfe8" stroke-width="4" stroke-linecap="round"/><line x1="40" y1="46" x2="72" y2="46" stroke="#fbcfe8" stroke-width="4" stroke-linecap="round"/><line x1="40" y1="64" x2="72" y2="64" stroke="#fbcfe8" stroke-width="4" stroke-linecap="round"/></svg>`
+            },
+            {
+                id: 'crayon',
+                name: 'crayon',
+                plural: 'crayons',
+                svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><path d="M28,82 L72,82 L66,28 L34,28 Z" fill="#84cc16" stroke="#4d7c0f" stroke-width="5"/><path d="M34,28 L66,28 L50,10 Z" fill="#a3e635" stroke="#4d7c0f" stroke-width="4"/><rect x="31" y="46" width="38" height="18" fill="#3f6212"/></svg>`
+            },
+            {
+                id: 'pencilcase',
+                name: 'pencil case',
+                plural: 'pencil cases',
+                svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><rect x="10" y="28" width="80" height="46" rx="14" fill="#f97316" stroke="#c2410c" stroke-width="5"/><line x1="10" y1="40" x2="90" y2="40" stroke="#ea580c" stroke-width="5"/><circle cx="80" cy="40" r="6" fill="#fef08a"/></svg>`
+            }
+        ];
+
+        // Web Speech API Initialization
+        const synth = window.speechSynthesis;
+        let voices = [];
+
+        function populateVoices() {
+            voices = synth.getVoices().filter(v => v.lang.startsWith('en'));
+        }
+
+        populateVoices();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = populateVoices;
+        }
+
+        // English Speech Pronunciation
+        function speak(text) {
+            if (!synth) return;
+            synth.cancel(); // Cancel currently playing audio speech
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.85; // Slightly slower for crisp clear listening
+            utterance.pitch = 1.15; // Natural child-friendly pitch
+
+            if (voices.length > 0) {
+                const preferredVoice = voices.find(v => v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha')) || voices[0];
+                if (preferredVoice) utterance.voice = preferredVoice;
+            }
+
+            synth.speak(utterance);
+            showSpeechBubble(text);
+        }
+
+        // Show Speech Bubble Animation
+        let speechTimer = null;
+        function showSpeechBubble(text) {
+            const bubble = document.getElementById('speech-bubble');
+            const speechText = document.getElementById('speech-text');
+            
+            speechText.textContent = text;
+            bubble.classList.remove('hidden');
+            
+            // Re-trigger CSS pop animation
+            bubble.classList.remove('pop-bubble');
+            void bubble.offsetWidth;
+            bubble.classList.add('pop-bubble');
+
+            clearTimeout(speechTimer);
+            speechTimer = setTimeout(() => {
+                bubble.classList.add('hidden');
+            }, 2200);
+        }
+
+        const trayGrid = document.getElementById('tray-grid');
+        const caseArea = document.getElementById('pencil-case-dropzone');
+        const emptyHint = document.getElementById('empty-hint');
+        const itemCounter = document.getElementById('item-counter');
+        const trashZone = document.getElementById('trash-zone');
+
+        // Render 12 items inside Tray Grid with Large SVG illustrations
+        STATIONERY_ITEMS.forEach((item) => {
+            const card = document.createElement('div');
+            card.className = 'stationery-card bg-slate-800/90 border-2 border-slate-600 hover:border-indigo-400 hover:bg-slate-700/80 rounded-2xl p-1 flex flex-col items-center justify-between cursor-pointer shadow-lg hover:shadow-indigo-500/30 active:scale-95 transition-all overflow-hidden h-full w-full min-h-0';
+            card.setAttribute('data-id', item.id);
+            
+            card.innerHTML = `
+                <div class="w-full flex-1 min-h-0 flex items-center justify-center p-1 pointer-events-none">
+                    ${item.svg}
+                </div>
+                <div class="flex flex-col items-center justify-center pb-1 pointer-events-none shrink-0 leading-tight">
+                    <span class="text-indigo-100 font-black text-xs sm:text-sm uppercase tracking-wider text-center line-clamp-1">${item.name}</span>
+                </div>
+            `;
+
+            // Click tray item -> Pronounce single item name & add enlarged version to case
+            card.addEventListener('pointerdown', (e) => {
+                if (!e.isPrimary) return;
+
+                const rect = caseArea.getBoundingClientRect();
+                
+                // Random position inside pencil case bounds (item size ~ 140px width/height)
+                const posX = Math.random() * (rect.width - 160) + 20;
+                const posY = Math.random() * (rect.height - 160) + 20;
+
+                // First speak item name
+                speak(item.name);
+
+                // Spawn enlarged item into pencil case
+                setTimeout(() => {
+                    spawnItemInCase(item, posX, posY);
+                }, 250);
+            });
+
+            trayGrid.appendChild(card);
+        });
+
+        let placedItems = [];
+
+        function spawnItemInCase(itemData, x, y) {
+            emptyHint.classList.add('hidden');
+
+            const itemElem = document.createElement('div');
+            // Enlarged item size: w-36 h-36 (9rem x 9rem = 144px x 144px)
+            itemElem.className = 'draggable-item absolute w-36 h-36 p-2 bg-white/90 backdrop-blur rounded-3xl shadow-2xl border-2 border-indigo-300 flex items-center justify-center select-none z-10 transition-transform active:scale-105 group';
+            itemElem.style.left = `${x}px`;
+            itemElem.style.top = `${y}px`;
+            itemElem.setAttribute('data-item-id', itemData.id);
+
+            // Item inner content + Individual "❌" Delete Button
+            itemElem.innerHTML = `
+                <div class="w-full h-full p-1 pointer-events-none">
+                    ${itemData.svg}
+                </div>
+                <button title="Remove" class="delete-single-btn absolute -top-2 -right-2 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white w-8 h-8 rounded-full font-black text-sm flex items-center justify-center shadow-lg border-2 border-white transition-transform active:scale-90 z-20">
+                    ✕
+                </button>
+            `;
+
+            caseArea.appendChild(itemElem);
+            placedItems.push({ element: itemElem, data: itemData });
+
+            // Setup Draggable Pointer events
+            makeElementDraggable(itemElem, itemData);
+
+            // Individual Delete Button Click Event (Removes ONLY this single item)
+            const deleteBtn = itemElem.querySelector('.delete-single-btn');
+            deleteBtn.addEventListener('pointerdown', (e) => {
+                e.stopPropagation(); // Stop drag triggering
+            });
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeItemFromCase(itemElem, itemData);
+            });
+
+            // Update items count and speak quantity
+            updateQuantityAndSpeak(itemData);
+        }
+
+        // Pointer Events Drag Handling (Supports both Mouse and Touch Screen)
+        function makeElementDraggable(element, itemData) {
+            let isDragging = false;
+            let startX, startY, initialLeft, initialTop;
+
+            element.addEventListener('pointerdown', (e) => {
+                if (e.target.closest('.delete-single-btn')) return;
+
+                isDragging = true;
+                element.setPointerCapture(e.pointerId);
+
+                startX = e.clientX;
+                startY = e.clientY;
+                initialLeft = parseFloat(element.style.left) || 0;
+                initialTop = parseFloat(element.style.top) || 0;
+
+                element.style.zIndex = '50';
+                e.stopPropagation();
+            });
+
+            element.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+
+                element.style.left = `${initialLeft + dx}px`;
+                element.style.top = `${initialTop + dy}px`;
+
+                // Trash bin area collision check
+                const trashRect = trashZone.getBoundingClientRect();
+                const elemRect = element.getBoundingClientRect();
+
+                if (
+                    elemRect.right > trashRect.left &&
+                    elemRect.left < trashRect.right &&
+                    elemRect.bottom > trashRect.top &&
+                    elemRect.top < trashRect.bottom
+                ) {
+                    trashZone.classList.add('trash-active');
+                } else {
+                    trashZone.classList.remove('trash-active');
+                }
+            });
+
+            const handlePointerUp = (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                element.style.zIndex = '10';
+
+                trashZone.classList.remove('trash-active');
+
+                const caseRect = caseArea.getBoundingClientRect();
+                const elemRect = element.getBoundingClientRect();
+                const trashRect = trashZone.getBoundingClientRect();
+
+                // Check if dropped into trash zone OR dragged far outside pencil case bounds
+                const isOverTrash = (
+                    elemRect.right > trashRect.left &&
+                    elemRect.left < trashRect.right &&
+                    elemRect.bottom > trashRect.top &&
+                    elemRect.top < trashRect.bottom
+                );
+
+                const isOutsideCase = (
+                    elemRect.right < caseRect.left + 20 ||
+                    elemRect.left > caseRect.right - 20 ||
+                    elemRect.bottom < caseRect.top + 20 ||
+                    elemRect.top > caseRect.bottom - 20
+                );
+
+                if (isOverTrash || isOutsideCase) {
+                    // Remove individual item from case
+                    removeItemFromCase(element, itemData);
+                } else {
+                    // Repositioned inside case -> update & speak current quantity
+                    updateQuantityAndSpeak(itemData);
+                }
+            };
+
+            element.addEventListener('pointerup', handlePointerUp);
+            element.addEventListener('pointercancel', handlePointerUp);
+        }
+
+        // Remove individual single item from Pencil Case
+        function removeItemFromCase(element, itemData) {
+            element.classList.add('transition-all', 'scale-0', 'opacity-0');
+            setTimeout(() => {
+                element.remove();
+                placedItems = placedItems.filter(i => i.element !== element);
+
+                if (placedItems.length === 0) {
+                    emptyHint.classList.remove('hidden');
+                }
+
+                // Recalculate quantity and speak new count (e.g., 2 pens -> 1 pen)
+                updateQuantityAndSpeak(itemData);
+            }, 200);
+        }
+
+        // Count how many of this specific item are inside pencil case and speak phrase
+        function updateQuantityAndSpeak(itemData) {
+            const count = placedItems.filter(i => i.data.id === itemData.id).length;
+            
+            // Update total counter
+            itemCounter.textContent = `Total Items: ${placedItems.length}`;
+
+            if (count > 0) {
+                // 1 pen, 2 pens, 3 notebooks, etc.
+                const phrase = `${count} ${count === 1 ? itemData.name : itemData.plural}`;
+                speak(phrase);
+            } else if (placedItems.length > 0) {
+                // Speak total remaining items phrase if this specific item count became 0
+                const remainingItem = placedItems[placedItems.length - 1].data;
+                const remCount = placedItems.filter(i => i.data.id === remainingItem.id).length;
+                speak(`${remCount} ${remCount === 1 ? remainingItem.name : remainingItem.plural}`);
+            }
+        }
+
+        // Clear All Items Button
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            if (placedItems.length === 0) return;
+            
+            placedItems.forEach(item => {
+                item.element.classList.add('transition-all', 'scale-0', 'opacity-0');
+                setTimeout(() => item.element.remove(), 200);
+            });
+
+            placedItems = [];
+            itemCounter.textContent = 'Total Items: 0';
+            emptyHint.classList.remove('hidden');
+            speak("Empty!");
+        });
+
+        // Initialize Speech synthesis on first touch interaction to unlock browser autoplay
+        window.addEventListener('pointerdown', function initAudio() {
+            if (synth && synth.resume) synth.resume();
+            window.removeEventListener('pointerdown', initAudio);
+        }, { once: true });
+    </script>
+</body>
+</html>
