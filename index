@@ -15,6 +15,8 @@
             -webkit-user-select: none;
             overflow: hidden;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            width: 100vw;
+            height: 100vh;
         }
 
         .stationery-card {
@@ -43,9 +45,12 @@
             animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
 
+        /* Flexible responsive sizing for draggable items inside pencil case */
         .draggable-item {
             touch-action: none;
             cursor: grab;
+            width: clamp(75px, 20vh, 140px);
+            height: clamp(75px, 20vh, 140px);
         }
 
         .draggable-item:active {
@@ -308,10 +313,17 @@
             emptyHint.classList.add('hidden');
 
             const itemElem = document.createElement('div');
-            // Enlarged item size: w-36 h-36 (9rem x 9rem = 144px x 144px)
-            itemElem.className = 'draggable-item absolute w-36 h-36 p-2 bg-white/90 backdrop-blur rounded-3xl shadow-2xl border-2 border-indigo-300 flex items-center justify-center select-none z-10 transition-transform active:scale-105 group';
-            itemElem.style.left = `${x}px`;
-            itemElem.style.top = `${y}px`;
+            // Responsive item size adapted to screen height (clamp max/min bounds)
+            itemElem.className = 'draggable-item absolute p-2 bg-white/90 backdrop-blur rounded-3xl shadow-2xl border-2 border-indigo-300 flex items-center justify-center select-none z-10 transition-transform active:scale-105 group';
+            
+            // Boundary checks for placement based on element bounds
+            const caseRect = caseArea.getBoundingClientRect();
+            const itemWidth = Math.min(Math.max(caseRect.height * 0.20, 75), 140);
+            const clampedX = Math.max(10, Math.min(x, caseRect.width - itemWidth - 10));
+            const clampedY = Math.max(10, Math.min(y, caseRect.height - itemWidth - 10));
+
+            itemElem.style.left = `${clampedX}px`;
+            itemElem.style.top = `${clampedY}px`;
             itemElem.setAttribute('data-item-id', itemData.id);
 
             // Item inner content + Individual "❌" Delete Button
@@ -319,7 +331,7 @@
                 <div class="w-full h-full p-1 pointer-events-none">
                     ${itemData.svg}
                 </div>
-                <button title="Remove" class="delete-single-btn absolute -top-2 -right-2 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white w-8 h-8 rounded-full font-black text-sm flex items-center justify-center shadow-lg border-2 border-white transition-transform active:scale-90 z-20">
+                <button title="Remove" class="delete-single-btn absolute -top-2 -right-2 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white w-7 h-7 sm:w-8 sm:h-8 rounded-full font-black text-xs sm:text-sm flex items-center justify-center shadow-lg border-2 border-white transition-transform active:scale-90 z-20">
                     ✕
                 </button>
             `;
